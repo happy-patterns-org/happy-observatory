@@ -55,3 +55,28 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Biome
+.biome/
+
+# Next.js
+.next/
+out/
+build/
+
+# Vite
+dist/
+.vite/
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

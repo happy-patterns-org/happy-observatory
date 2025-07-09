@@ -56,6 +56,7 @@ const config: Config = {
       animation: {
         'mcp-pulse': 'mcp-pulse 2s ease-in-out infinite',
         'solar-progress': 'solar-progress 10s linear infinite',
+        'spin-slow': 'spin 8s linear infinite',
       },
       keyframes: {
         'mcp-pulse': {

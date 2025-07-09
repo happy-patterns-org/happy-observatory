@@ -32,9 +32,13 @@ export function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
   // Set CSP with nonce
+  const scriptSrc = process.env.NODE_ENV === 'development' 
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'` // unsafe-eval needed for Next.js dev mode
+    : `script-src 'self' 'nonce-${nonce}'`
+    
   const cspHeader = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    scriptSrc,
     `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`, // Still need unsafe-inline for Next.js CSS
     "img-src 'self' data: https: blob:",
     "font-src 'self'",

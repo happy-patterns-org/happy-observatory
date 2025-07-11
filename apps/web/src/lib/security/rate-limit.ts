@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
-import { securityConfig } from './config'
 import { env } from '@/lib/env'
+import { logger } from '@/lib/logger-server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { securityConfig } from './config'
 
 interface RateLimitEntry {
   count: number
@@ -76,7 +76,7 @@ function getClientIp(req: NextRequest): string {
     const forwardedFor = req.headers.get('x-forwarded-for')
     if (forwardedFor) {
       // Take the first IP if there are multiple
-      return forwardedFor.split(',')[0].trim()
+      return forwardedFor.split(',')[0]?.trim() ?? ''
     }
 
     // Check X-Real-IP header
@@ -130,7 +130,10 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
         )
 
         for (let i = 0; i < entriesToRemove; i++) {
-          rateLimitStore.delete(sortedEntries[i][0])
+          const entry = sortedEntries[i]
+          if (entry) {
+            rateLimitStore.delete(entry[0])
+          }
         }
 
         logger.warn(`Rate limiter store size exceeded, removed ${entriesToRemove} oldest entries`)
@@ -245,17 +248,16 @@ export function composeMiddleware<T extends any[]>(
   ...middlewares: Array<(req: NextRequest, ...args: T) => Promise<NextResponse>>
 ) {
   return async function composedHandler(req: NextRequest, ...args: T): Promise<NextResponse> {
-    let result = req
-
     for (const middleware of middlewares) {
-      const response = await middleware(result as NextRequest, ...args)
+      const response = await middleware(req, ...args)
       if (response.status !== 200) {
         return response
       }
-      result = response as any
     }
 
-    return result as NextResponse
+    // If all middleware passed, return the last response
+    const lastMiddleware = middlewares[middlewares.length - 1]
+    return lastMiddleware(req, ...args)
   }
 }
 
@@ -264,7 +266,6 @@ export function composeMiddleware<T extends any[]>(
  */
 export function getRateLimiterStats() {
   const entries = Array.from(rateLimitStore.entries())
-  const now = Date.now()
 
   // Calculate stats
   const stats = {
@@ -284,4 +285,13 @@ export function getRateLimiterStats() {
   }
 
   return stats
+}
+
+/**
+ * Clear rate limiter store (for testing only)
+ */
+export function clearRateLimiterStore() {
+  if (process.env.NODE_ENV === 'test') {
+    rateLimitStore.clear()
+  }
 }

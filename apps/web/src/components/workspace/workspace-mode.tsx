@@ -1,6 +1,6 @@
 'use client'
 
-import { Eye, Compass, Users, Zap } from 'lucide-react'
+import { Compass, Eye, Users, Zap } from 'lucide-react'
 
 type OperatingMode = 'observe' | 'guide' | 'collaborate' | 'autonomous'
 
@@ -73,7 +73,7 @@ export function WorkspaceMode({ currentMode, onModeChange }: WorkspaceModeProps)
               w-12 h-12 mx-auto mb-3 rounded-lg bg-gradient-to-br ${mode.color}
               flex items-center justify-center transition-transform duration-200
               ${currentMode === mode.id ? 'scale-110 nexus-pulse' : 'group-hover:scale-105'}
-              ${currentMode === mode.id ? mode.id + '-glow' : ''}
+              ${currentMode === mode.id ? `${mode.id}-glow` : ''}
             `}
             >
               <mode.icon className="w-6 h-6 text-white" />

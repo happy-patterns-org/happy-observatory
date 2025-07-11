@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger-server'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
 import { withRateLimit } from '@/lib/security/rate-limit'
+import { type NextRequest, NextResponse } from 'next/server'
 
-async function postAgentCommandHandler(request: NextRequest, authContext: AuthContext) {
+async function postAgentCommandHandler(request: NextRequest, _authContext: AuthContext) {
   try {
     const { agentId, command, parameters, source } = await request.json()
 

@@ -1,7 +1,7 @@
 'use client'
 
+import { Save, Shield, Terminal } from 'lucide-react'
 import { useState } from 'react'
-import { Settings, Shield, Terminal, Save } from 'lucide-react'
 
 interface ConsoleConfigProps {
   onClose: () => void
@@ -63,7 +63,12 @@ export function ConsoleConfig({
             </div>
             <select
               value={config.securityLevel}
-              onChange={(e) => setConfig({ ...config, securityLevel: e.target.value as any })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  securityLevel: e.target.value as 'strict' | 'standard' | 'permissive',
+                })
+              }
               className="w-full px-3 py-2 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="strict">Strict - Maximum security, limited commands</option>
@@ -112,7 +117,7 @@ export function ConsoleConfig({
               min="10"
               max="20"
               value={config.fontSize}
-              onChange={(e) => setConfig({ ...config, fontSize: parseInt(e.target.value) })}
+              onChange={(e) => setConfig({ ...config, fontSize: Number.parseInt(e.target.value) })}
               className="w-full"
             />
           </div>
@@ -153,7 +158,9 @@ export function ConsoleConfig({
               max="10000"
               step="100"
               value={config.maxHistorySize}
-              onChange={(e) => setConfig({ ...config, maxHistorySize: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setConfig({ ...config, maxHistorySize: Number.parseInt(e.target.value) })
+              }
               className="w-full px-3 py-2 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

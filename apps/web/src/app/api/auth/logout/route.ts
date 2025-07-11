@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
+import { getRequestMetadata, logSecurityEvent } from '@/lib/security/audit-logger'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
 import { tokenRevocationStore } from '@/lib/security/token-revocation'
-import { logSecurityEvent, getRequestMetadata } from '@/lib/security/audit-logger'
+import { type NextRequest, NextResponse } from 'next/server'
 
 async function logoutHandler(
   request: NextRequest,

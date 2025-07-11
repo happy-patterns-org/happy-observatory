@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Terminal, Send, X } from 'lucide-react'
-import { ScopeCamMCPConnection } from '@/lib/scopecam/mcp-connection'
+import type { ScopeCamMCPConnection } from '@/lib/scopecam/mcp-connection'
+import { Send, Terminal, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface ShellTerminalProps {
   mcpConnection: ScopeCamMCPConnection
@@ -143,14 +143,14 @@ export function ShellTerminal({ mcpConnection, projectName }: ShellTerminalProps
       if (historyIndex < history.length - 1) {
         const newIndex = historyIndex + 1
         setHistoryIndex(newIndex)
-        setCommand(history[history.length - 1 - newIndex].command)
+        setCommand(history[history.length - 1 - newIndex]?.command ?? '')
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1
         setHistoryIndex(newIndex)
-        setCommand(history[history.length - 1 - newIndex].command)
+        setCommand(history[history.length - 1 - newIndex]?.command ?? '')
       } else if (historyIndex === 0) {
         setHistoryIndex(-1)
         setCommand('')
@@ -164,7 +164,7 @@ export function ShellTerminal({ mcpConnection, projectName }: ShellTerminalProps
       )
 
       if (matches.length === 1) {
-        setCommand(currentCmd.startsWith('sct') ? `sct ${matches[0].cmd} ` : `${matches[0].cmd} `)
+        setCommand(currentCmd.startsWith('sct') ? `sct ${matches[0]?.cmd ?? ''} ` : `${matches[0]?.cmd ?? ''} `)
       } else if (matches.length > 1) {
         setShowSuggestions(true)
       }
@@ -215,7 +215,7 @@ export function ShellTerminal({ mcpConnection, projectName }: ShellTerminalProps
               <span className="text-purple-400">$</span>
               <span className="text-stone-300">{entry.command}</span>
               {entry.status === 'running' && (
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400 ml-2"></div>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400 ml-2" />
               )}
             </div>
             {entry.output && (

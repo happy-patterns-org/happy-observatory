@@ -1,30 +1,30 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Zap,
-  BarChart3,
-  FileSearch,
-  Shield,
-  Terminal,
-  StopCircle,
-  Activity,
-} from 'lucide-react'
-import { ScopeCamProject } from '@/lib/scopecam/mcp-connection'
-import { getTelemetryClient } from '@/lib/scopecam/telemetry'
-import { SCOPECAM_MCP_TOOLS } from '@/lib/scopecam/mcp-tools'
-import { TestGuardian } from './test-guardian'
 import { useAgentControl } from '@/lib/agent-control'
+import type { ScopeCamProject } from '@/lib/scopecam/mcp-connection'
+import { SCOPECAM_MCP_TOOLS } from '@/lib/scopecam/mcp-tools'
+import { getTelemetryClient } from '@/lib/scopecam/telemetry'
+import {
+  Activity,
+  AlertCircle,
+  BarChart3,
+  CheckCircle,
+  Clock,
+  FileSearch,
+  Pause,
+  Play,
+  RotateCcw,
+  Shield,
+  StopCircle,
+  Terminal,
+  TrendingDown,
+  TrendingUp,
+  XCircle,
+  Zap,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { AgentStatusMonitor } from '../agent-status-monitor'
+import { TestGuardian } from './test-guardian'
 
 interface TestDashboardProps {
   project: ScopeCamProject
@@ -72,7 +72,7 @@ export function TestDashboard({ project, mcpConnection }: TestDashboardProps) {
 
   const [activeTools, setActiveTools] = useState<Map<string, ActiveTool>>(new Map())
   const [selectedTool, setSelectedTool] = useState<string>('test_selector')
-  const [toolParams, setToolParams] = useState<Record<string, any>>({})
+  const [toolParams] = useState<Record<string, any>>({})
   const [recentResults, setRecentResults] = useState<any[]>([])
   const [showAgentStatus, setShowAgentStatus] = useState(false)
 
@@ -117,9 +117,9 @@ export function TestDashboard({ project, mcpConnection }: TestDashboardProps) {
   }
 
   const updateMetricsFromTelemetry = (
-    testMetrics: any[],
-    coverageMetrics: any[],
-    performanceMetrics: any[]
+    _testMetrics: any[],
+    _coverageMetrics: any[],
+    _performanceMetrics: any[]
   ) => {
     // Implementation would process telemetry data
     // This is a simplified version
@@ -354,7 +354,7 @@ export function TestDashboard({ project, mcpConnection }: TestDashboardProps) {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() =>
-                    executeCommand({ agentId: orchestratorAgent!.id, command: 'pause' })
+                    executeCommand({ agentId: orchestratorAgent?.id, command: 'pause' })
                   }
                   disabled={isExecuting || !orchestratorAgent?.canPause}
                   className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-1"
@@ -414,7 +414,7 @@ export function TestDashboard({ project, mcpConnection }: TestDashboardProps) {
                 {activeTools.has(tool.name) && (
                   <div className="flex items-center gap-1">
                     {activeTools.get(tool.name)?.status === 'running' && (
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600" />
                     )}
                     {activeTools.get(tool.name)?.status === 'completed' && (
                       <CheckCircle className="w-3 h-3 text-green-600" />

@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { logger } from '@/lib/logger-server'
-import { securityConfig } from './config'
 import * as jose from 'jose'
-import { checkTokenRevocation } from './token-revocation'
 import { nanoid } from 'nanoid'
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { securityConfig } from './config'
+import { checkTokenRevocation } from './token-revocation'
 
 // Auth token schema
 const authTokenSchema = z.object({
@@ -200,7 +200,10 @@ function parseDuration(duration: string): number {
   }
 
   const [, value, unit] = match
-  const num = parseInt(value, 10)
+  if (!value || !unit) {
+    throw new Error(`Invalid duration format: ${duration}`)
+  }
+  const num = Number.parseInt(value, 10)
 
   switch (unit) {
     case 's':

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
-import { withProjectValidation, ProjectContext } from './project-middleware'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
+import { type NextRequest, NextResponse } from 'next/server'
+import { type ProjectContext } from './project-middleware'
 
 /**
  * Combine authentication and project validation middleware

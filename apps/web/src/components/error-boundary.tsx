@@ -1,7 +1,8 @@
 'use client'
 
-import React, { Component, ReactNode } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
+import type React from 'react'
+import { Component, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
@@ -48,6 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
+              type="button"
               onClick={this.handleReset}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >

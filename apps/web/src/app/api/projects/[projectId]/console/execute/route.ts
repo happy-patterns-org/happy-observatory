@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
+import { API_PATHS, getBridgeAPIUrl } from '@/config-adapter'
+import { getProjectContext, withProjectValidation } from '@/lib/api/project-middleware'
 import { env } from '@/lib/env'
-import { withProjectValidation, getProjectContext } from '@/lib/api/project-middleware'
+import { logger } from '@/lib/logger-server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 const executeSchema = z.object({
@@ -25,7 +26,7 @@ async function handler(request: NextRequest, { params }: { params: { projectId: 
     if (env.USE_REAL_DATA) {
       try {
         const response = await fetch(
-          `${env.NEXT_PUBLIC_BRIDGE_SERVER_URL}/api/projects/${projectContext.projectId}/console/execute`,
+          getBridgeAPIUrl(API_PATHS.consoleExecute(projectContext.projectId)),
           {
             method: 'POST',
             headers: {

@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useProjectStore } from '@/store/project-store'
-import { useProjects } from '@/hooks/use-projects'
-import { ChevronDown, FolderOpen, Plus, X, Activity, Server, Search, Loader2 } from 'lucide-react'
-import { validateProject, sanitizePath, sanitizeProjectName } from '@/lib/validation'
-import { ProjectDetector, type DetectedProject } from '@/lib/project-detector'
-import { detectMCPServer } from '@/lib/mcp-detector-enhanced'
 import { ProjectIcon } from '@/components/project-icon'
+import { useProjects } from '@/hooks/use-projects'
+import { detectMCPServer } from '@/lib/mcp-detector-enhanced'
+import { type DetectedProject, ProjectDetector } from '@/lib/project-detector'
+import { sanitizePath, sanitizeProjectName, validateProject } from '@/lib/validation'
+import { useProjectStore } from '@/store/project-store'
+import { Activity, ChevronDown, Loader2, Plus, Search, Server, X } from 'lucide-react'
+import { useState } from 'react'
 
 export function ProjectChooser() {
   const { selectedProject, selectProject, addProject, removeProject } = useProjectStore()
-  const { projects, isLoading: projectsLoading } = useProjects({
+  const { projects } = useProjects({
     autoFetch: true,
     refreshInterval: 30000, // Refresh every 30 seconds
   })
@@ -37,9 +37,9 @@ export function ProjectChooser() {
     }
 
     const sanitizedProject = {
-      name: sanitizeProjectName(validation.data!.name),
-      path: sanitizePath(validation.data!.path),
-      description: validation.data!.description,
+      name: sanitizeProjectName(validation.data?.name || ''),
+      path: sanitizePath(validation.data?.path || ''),
+      ...(validation.data?.description && { description: validation.data.description }),
     }
 
     addProject(sanitizedProject)
@@ -70,6 +70,17 @@ export function ProjectChooser() {
   }
 
   const handleAddDetectedProject = async (detected: DetectedProject) => {
+    // Check if this is a known project that needs a specific ID
+    const isDevKitProject =
+      detected.name.toLowerCase().includes('devkit') ||
+      detected.path.toLowerCase().includes('happy-devkit')
+
+    // Don't add if it's devkit and already exists
+    if (isDevKitProject && projects.some((p) => p.id === 'devkit')) {
+      setDetectedProjects((prev) => prev.filter((p) => p.path !== detected.path))
+      return
+    }
+
     const projectData = {
       name: detected.name,
       path: detected.path,
@@ -107,7 +118,7 @@ export function ProjectChooser() {
         }}
       >
         <ProjectIcon
-          icon={selectedProject?.icon}
+          {...(selectedProject?.icon && { icon: selectedProject.icon })}
           name={selectedProject?.name || 'Project'}
           size="md"
         />
@@ -158,16 +169,10 @@ export function ProjectChooser() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <ProjectIcon
-                              icon={project.icon}
+                              {...(project.icon && { icon: project.icon })}
                               name={project.name}
                               size="md"
                               className={project.color ? '' : ''}
-                              style={{
-                                filter:
-                                  project.color && project.icon
-                                    ? `drop-shadow(0 0 2px ${project.color}40)`
-                                    : undefined,
-                              }}
                             />
                             <div className="font-medium text-sm text-stone-900">{project.name}</div>
                             {project.color && (

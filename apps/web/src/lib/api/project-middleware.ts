@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { logger } from '@/lib/logger-server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 // Schema for project ID validation - accepts UUID or slug format
 const projectIdSchema = z.string().refine(

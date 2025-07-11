@@ -1,10 +1,13 @@
+import { ErrorBoundary } from '@/components/error-boundary'
+import { NonceProvider } from '@/components/nonce-provider'
+import { BroadcastMonitorProvider } from '@/components/providers/broadcast-monitor-provider'
+import { SWRProvider } from '@/components/providers/swr-provider'
+import { cn } from '@/lib/utils'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { headers } from 'next/headers'
-import Script from 'next/script'
-import { cn } from '@/lib/utils'
-import { ErrorBoundary } from '@/components/error-boundary'
-import { NonceProvider } from '@/components/nonce-provider'
+// import Script from 'next/script' // Not used
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const inter = Inter({
@@ -39,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   // Get nonce from headers set by middleware
-  const nonce = headers().get('x-nonce') ?? undefined
+  const nonce = headers().get('x-nonce')
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -51,10 +54,9 @@ export default function RootLayout({
           jetbrainsMono.variable
         )}
       >
-        <Script
-          id="theme-setup"
-          strategy="beforeInteractive"
-          nonce={nonce}
+        {/* Theme setup without Script component to avoid hydration issues */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Required for theme initialization before hydration */}
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               // Theme initialization script
@@ -68,8 +70,13 @@ export default function RootLayout({
             `,
           }}
         />
-        <NonceProvider nonce={nonce}>
-          <ErrorBoundary>{children}</ErrorBoundary>
+        <NonceProvider {...(nonce && { nonce })}>
+          <SWRProvider>
+            <BroadcastMonitorProvider>
+              <ErrorBoundary>{children}</ErrorBoundary>
+              <Toaster position="top-right" richColors />
+            </BroadcastMonitorProvider>
+          </SWRProvider>
         </NonceProvider>
       </body>
     </html>

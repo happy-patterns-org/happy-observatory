@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { env } from '@/lib/env'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Only available in development
 export async function GET(request: NextRequest) {

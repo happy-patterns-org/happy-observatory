@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { getBridgeWebSocket, BridgeMessage } from '@/lib/bridge-websocket'
+import { type BridgeMessage, getBridgeWebSocket } from '@/lib/bridge-websocket'
+import { useCallback, useEffect, useState } from 'react'
 
 interface UseBridgeWebSocketOptions {
   onTelemetry?: (data: any) => void

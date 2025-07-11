@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import config, { API_PATHS, getBridgeAPIUrl } from '@/config-adapter'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const useRealData = process.env.NEXT_PUBLIC_USE_REAL_DATA === 'true'
-    const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_SERVER_URL || 'http://localhost:8080'
+    const useRealData = config.useRealData
 
     const body = await request.json()
     const { command, projectPath } = body
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (useRealData) {
       try {
         // Execute command via bridge server
-        const response = await fetch(`${bridgeUrl}/api/console/execute`, {
+        const response = await fetch(getBridgeAPIUrl(API_PATHS.consoleExecute('devkit')), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

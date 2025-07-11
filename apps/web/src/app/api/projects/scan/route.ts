@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import config, { getBridgeAPIUrl } from '@/config-adapter'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const useRealData = process.env.NEXT_PUBLIC_USE_REAL_DATA === 'true'
-    const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_SERVER_URL || 'http://localhost:8080'
+    const useRealData = config.useRealData
 
     const body = await request.json()
     const { path } = body
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     if (useRealData) {
       try {
         // Request file system scan from bridge server
-        const response = await fetch(`${bridgeUrl}/api/projects/scan`, {
+        const response = await fetch(getBridgeAPIUrl('/api/projects/scan'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

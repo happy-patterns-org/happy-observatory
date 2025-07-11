@@ -50,7 +50,7 @@ export const securityConfig = {
           throw new Error('SESSION_SECRET environment variable is required in production')
         }
         // Generate a random secret for development only
-        const devSecret = require('crypto').randomBytes(32).toString('hex')
+        const devSecret = require('node:crypto').randomBytes(32).toString('hex')
         console.log(`[DEV] Generated session secret: ${devSecret.substring(0, 8)}...`)
         return devSecret
       })(),
@@ -73,7 +73,7 @@ export const securityConfig = {
           throw new Error('JWT_SECRET environment variable is required in production')
         }
         // Generate a random secret for development only
-        const devSecret = require('crypto').randomBytes(32).toString('hex')
+        const devSecret = require('node:crypto').randomBytes(32).toString('hex')
         console.log(`[DEV] Generated JWT secret: ${devSecret.substring(0, 8)}...`)
         return devSecret
       })(),

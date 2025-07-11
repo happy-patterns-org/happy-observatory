@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { runDiagnostics } from '@/lib/diagnostics'
 import { withRateLimit } from '@/lib/security/rate-limit'
+import { type NextRequest, NextResponse } from 'next/server'
 
-async function healthHandler(request: NextRequest) {
+async function healthHandler(_request: NextRequest) {
   try {
     const port = Number(process.env.PORT) || 3000
     const diagnosticsReport = await runDiagnostics(port)

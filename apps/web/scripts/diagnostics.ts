@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { runDiagnostics, formatDiagnostics } from '../src/lib/diagnostics'
+import { formatDiagnostics, runDiagnostics } from '../src/lib/diagnostics'
 
 async function main() {
   console.log('🔍 Running Happy Observatory diagnostics...\n')

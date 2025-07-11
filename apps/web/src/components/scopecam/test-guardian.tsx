@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useAgentControl } from '@/lib/agent-control'
+import type { ScopeCamProject } from '@/lib/scopecam/mcp-connection'
+import { getTelemetryClient } from '@/lib/scopecam/telemetry'
 import {
-  Shield,
+  Activity,
   AlertTriangle,
   CheckCircle,
-  Activity,
-  TrendingUp,
+  Shield,
   TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
-import { ScopeCamProject } from '@/lib/scopecam/mcp-connection'
-import { getTelemetryClient } from '@/lib/scopecam/telemetry'
-import { useAgentControl } from '@/lib/agent-control'
+import { useEffect, useState } from 'react'
 
 interface TestGuardianStatus {
   mode: 'monitor' | 'suggest' | 'auto-fix'
@@ -211,7 +211,7 @@ export function TestGuardian({ project, mcpConnection }: TestGuardianProps) {
           <h3 className="text-lg font-semibold">Test Guardian</h3>
         </div>
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
           <p className="text-sm text-stone-600 mt-2">Loading Test Guardian...</p>
         </div>
       </div>

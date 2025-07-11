@@ -1,21 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
+import { API_PATHS, getBridgeAPIUrl } from '@/config-adapter'
 import { env } from '@/lib/env'
-import { getMockProjectsResponse } from '@/mocks/projects'
-import { withRateLimit } from '@/lib/security/rate-limit'
+import { logger } from '@/lib/logger-server'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
 import { securityConfig } from '@/lib/security/config'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
+import { withRateLimit } from '@/lib/security/rate-limit'
+import { getMockProjectsResponse } from '@/mocks/projects'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Mark as dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
 
-async function getProjectsHandler(request: NextRequest, authContext: AuthContext) {
+async function getProjectsHandler(_request: NextRequest, _authContext: AuthContext) {
   try {
     logger.info('Fetching projects list')
 
     if (env.USE_REAL_DATA) {
       try {
-        const response = await fetch(`${env.NEXT_PUBLIC_BRIDGE_SERVER_URL}/api/projects`, {
+        const response = await fetch(getBridgeAPIUrl(API_PATHS.projects), {
           headers: {
             'Content-Type': 'application/json',
           },

@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withRateLimit } from '@/lib/security/rate-limit'
+import config, { API_PATHS, getBridgeAPIUrl } from '@/config-adapter'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
 import { securityConfig } from '@/lib/security/config'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
+import { withRateLimit } from '@/lib/security/rate-limit'
+import { type NextRequest, NextResponse } from 'next/server'
 
-async function getTelemetryHandler(request: NextRequest, authContext: AuthContext) {
+async function getTelemetryHandler(request: NextRequest, _authContext: AuthContext) {
   try {
-    const useRealData = process.env.NEXT_PUBLIC_USE_REAL_DATA === 'true'
-    const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_SERVER_URL || 'http://localhost:8080'
+    const useRealData = config.useRealData
 
     // Get time range from query params
     const searchParams = request.nextUrl.searchParams
@@ -15,7 +15,7 @@ async function getTelemetryHandler(request: NextRequest, authContext: AuthContex
     if (useRealData) {
       try {
         // Fetch real telemetry from bridge server
-        const response = await fetch(`${bridgeUrl}/api/telemetry/metrics?minutes=${minutes}`)
+        const response = await fetch(getBridgeAPIUrl(`${API_PATHS.metrics}?minutes=${minutes}`))
 
         if (response.ok) {
           const data = await response.json()

@@ -1,3 +1,4 @@
+import { SERVICE_URLS } from '@business-org/shared-config-ts/src/index'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -32,17 +33,22 @@ export function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
   // Set CSP with nonce
-  const scriptSrc = process.env.NODE_ENV === 'development' 
-    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'` // unsafe-eval needed for Next.js dev mode
-    : `script-src 'self' 'nonce-${nonce}'`
-    
+  // Hash for the theme initialization script (provided by browser error)
+  const themeScriptHash = "'sha256-UF0dhkvpNCh6Kb/7PGA69028B2YCwUkzhkStnGpAjRQ='"
+
+  const scriptSrc =
+    process.env.NODE_ENV === 'development'
+      ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' ${themeScriptHash}` // unsafe-eval needed for Next.js dev mode
+      : `script-src 'self' 'nonce-${nonce}' ${themeScriptHash}`
+
   const cspHeader = [
     "default-src 'self'",
     scriptSrc,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`, // Still need unsafe-inline for Next.js CSS
+    "style-src 'self' 'unsafe-inline'", // unsafe-inline required for Next.js and Tailwind CSS
     "img-src 'self' data: https: blob:",
     "font-src 'self'",
-    "connect-src 'self' ws: wss: https://api.anthropic.com",
+    `connect-src 'self' ws: wss: https://api.anthropic.com ${SERVICE_URLS.BRIDGE_SERVER} ${SERVICE_URLS.BRIDGE_SERVER.replace(/^http/, 'ws')} ${SERVICE_URLS.MCP_DAEMON} ${SERVICE_URLS.OBSERVATORY}`,
+    "frame-src 'self' http://localhost:3001", // TODO: Replace with SERVICE_URLS.nexusConsole when available
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

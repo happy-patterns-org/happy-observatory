@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
-import { env } from '@/lib/env'
 import { withAuthAndProject } from '@/lib/api/auth-project-middleware'
-import { getProjectContext } from '@/lib/api/project-middleware'
+import { type ProjectContext, getProjectContext } from '@/lib/api/project-middleware'
+import { env } from '@/lib/env'
+import { logger } from '@/lib/logger-server'
+import type { AuthContext } from '@/lib/security/auth-middleware'
+import { type NextRequest, NextResponse } from 'next/server'
 
 async function handler(
   request: NextRequest,
-  authContext: any,
-  projectContext: any,
+  _authContext: AuthContext,
+  _projectContext: ProjectContext,
   { params }: { params: { projectId: string } }
 ) {
   try {

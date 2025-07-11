@@ -32,10 +32,10 @@ async function simulateRequest(ip) {
 }
 
 async function runStressTest() {
-  const count = parseInt(options.count)
-  const concurrency = parseInt(options.concurrency)
+  const count = Number.parseInt(options.count)
+  const concurrency = Number.parseInt(options.concurrency)
 
-  console.log(`Starting rate limiter stress test:`)
+  console.log('Starting rate limiter stress test:')
   console.log(`- Target: ${options.url}`)
   console.log(`- Unique IPs: ${count}`)
   console.log(`- Concurrency: ${concurrency}`)

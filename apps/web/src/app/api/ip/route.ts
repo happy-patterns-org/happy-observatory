@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { env } from '@/lib/env'
+import { type NextRequest, NextResponse } from 'next/server'
 
 /**
  * Test endpoint to verify IP detection with TRUST_PROXY_HEADERS
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     'x-real-ip': request.headers.get('x-real-ip'),
     'cf-connecting-ip': request.headers.get('cf-connecting-ip'),
     'x-client-ip': request.headers.get('x-client-ip'),
-    'connection-remote-address': (request as any).ip || null,
+    'connection-remote-address': null, // NextRequest doesn't have an 'ip' property
   }
 
   // Determine detected IP based on trust settings
@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
 
   if (trustProxy) {
     // Trust proxy headers
+    const xForwardedFor = ipSources['x-forwarded-for']
     detectedIp =
-      ipSources['x-forwarded-for']?.split(',')[0].trim() ||
+      (xForwardedFor ? xForwardedFor.split(',')[0]?.trim() ?? null : null) ||
       ipSources['x-real-ip'] ||
       ipSources['cf-connecting-ip'] ||
       ipSources['connection-remote-address'] ||

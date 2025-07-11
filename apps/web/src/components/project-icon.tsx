@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import Image from 'next/image'
 import { FileQuestion } from 'lucide-react'
+import Image from 'next/image'
+import { useState } from 'react'
 
 interface ProjectIconProps {
   icon?: string
@@ -44,8 +44,8 @@ export function ProjectIcon({ icon, name, size = 'md', className = '' }: Project
   }
 
   // Handle emojis or text icons
-  // Check if it's likely an emoji (unicode characters)
-  const isEmoji = /\p{Emoji}/u.test(icon)
+  // Simple emoji detection - if it's 1-2 chars and not alphanumeric, assume emoji
+  const isEmoji = icon.length <= 2 && !/^[a-zA-Z0-9]+$/.test(icon)
 
   if (isEmoji) {
     return <span className={`${sizes.emoji} ${className}`}>{icon}</span>

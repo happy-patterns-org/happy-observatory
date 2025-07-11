@@ -95,6 +95,20 @@ class TokenRevocationStore {
 export const tokenRevocationStore = new TokenRevocationStore()
 
 /**
+ * Check if a token is revoked
+ */
+export async function isTokenRevoked(jti: string): Promise<boolean> {
+  return tokenRevocationStore.isRevoked(jti)
+}
+
+/**
+ * Revoke a token
+ */
+export function revokeToken(jti: string, expiresAt: number): void {
+  tokenRevocationStore.revoke(jti, expiresAt)
+}
+
+/**
  * Middleware to check token revocation
  */
 export async function checkTokenRevocation(jti: string | undefined): Promise<boolean> {

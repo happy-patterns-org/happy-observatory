@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { WorkspaceLayout } from '@/components/workspace/workspace-layout'
-import { WorkspaceMode } from '@/components/workspace/workspace-mode'
-import { NexusConsole } from '@/components/workspace/nexus-console'
-import { SolarProgressIndicator } from '@/components/workspace/solar-progress'
-import { useProjectStore } from '@/store/project-store'
-import { detectMCPServer, connectToMCPServer } from '@/lib/mcp-detector-enhanced'
-import { useProjectWebSocket } from '@/hooks/use-project-websocket'
-import { useProjectApi } from '@/lib/api/project-client'
 import { AgentStatusMonitor } from '@/components/agent-status-monitor'
 import { DashboardMetrics } from '@/components/dashboard-metrics'
 import { TestDashboard } from '@/components/scopecam/test-dashboard'
-import { ScopeCamMCPConnection, ScopeCamProject } from '@/lib/scopecam/mcp-connection'
+import { NexusConsole } from '@/components/workspace/nexus-console'
+import { SolarProgressIndicator } from '@/components/workspace/solar-progress'
+import { WorkspaceLayout } from '@/components/workspace/workspace-layout'
+import { WorkspaceMode } from '@/components/workspace/workspace-mode'
+import config from '@/config-adapter'
+import { useProjectWebSocket } from '@/hooks/use-project-websocket'
+import { logger } from '@/lib/logger-client'
+import { connectToMCPServer, detectMCPServer } from '@/lib/mcp-detector-enhanced'
+import { ScopeCamMCPConnection, type ScopeCamProject } from '@/lib/scopecam/mcp-connection'
+import { isValidMCPServerUrl } from '@/lib/validation'
+import { useProjectStore } from '@/store/project-store'
+import { useEffect, useRef, useState } from 'react'
 
 type OperatingMode = 'observe' | 'guide' | 'collaborate' | 'autonomous'
 
@@ -23,23 +25,22 @@ export default function WorkspacePage() {
   const [consoleCollapsed, setConsoleCollapsed] = useState(false)
   const [mcpConnection, setMcpConnection] = useState<any>(null)
   const [isScopeCamProject, setIsScopeCamProject] = useState(false)
+  const [, setIsConnecting] = useState(false)
 
-  // Project-scoped API client
-  const projectApi = useProjectApi(selectedProject?.id)
 
   // Project-scoped WebSocket connection for real-time updates
-  const { isConnected: wsConnected, connectionError: wsError } = useProjectWebSocket({
+  useProjectWebSocket({
+    autoConnect: false, // Disable auto-connect to prevent conflicts with MCP connection
     onTelemetry: (data) => {
-      console.log('Received telemetry update:', data)
+      logger.debug('Received telemetry update', { data })
     },
     onAgentStatus: (data) => {
-      console.log('Received agent status update:', data)
+      logger.debug('Received agent status update', { data })
       // Agent activity is automatically updated in the hook
     },
     onError: (error) => {
-      console.error('WebSocket error:', error)
+      logger.error('WebSocket error', error as Error)
     },
-    autoConnect: true,
   })
 
   // Keyboard shortcuts
@@ -74,19 +75,80 @@ export default function WorkspacePage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Handle project changes
+  // Handle project changes - using ref to track connection state
+  const connectionStateRef = useRef<{
+    projectId?: string
+    isConnecting: boolean
+    connection: any
+  }>({
+    isConnecting: false,
+    connection: null,
+  })
+
   useEffect(() => {
+    // Prevent multiple simultaneous connections
+    if (connectionStateRef.current.isConnecting) return
+
+    // Clean up existing connection when project changes
+    if (
+      connectionStateRef.current.connection &&
+      selectedProject?.id !== connectionStateRef.current.projectId
+    ) {
+      const conn = connectionStateRef.current.connection
+      if (typeof conn.disconnect === 'function') {
+        conn.disconnect()
+      } else if (typeof conn.close === 'function') {
+        conn.close()
+      }
+      connectionStateRef.current.connection = null
+      setMcpConnection(null)
+    }
+
     if (selectedProject) {
+      connectionStateRef.current.projectId = selectedProject.id
       const isScopeCam = selectedProject.name.toLowerCase().includes('scopecam')
       setIsScopeCamProject(isScopeCam)
 
-      if (selectedProject.hasSubmoduleMCP && selectedProject.mcpServerUrl) {
-        handleMCPConnection(selectedProject.mcpServerUrl, isScopeCam)
-      } else {
-        detectAndConnect()
+      const performConnection = async () => {
+        connectionStateRef.current.isConnecting = true
+        setIsConnecting(true)
+
+        try {
+          if (selectedProject.hasSubmoduleMCP && selectedProject.mcpServerUrl) {
+            // Check if mcpServerUrl is a valid string
+            if (typeof selectedProject.mcpServerUrl === 'string') {
+              await handleMCPConnection(selectedProject.mcpServerUrl, isScopeCam)
+            } else {
+              logger.error('Project has invalid mcpServerUrl', new Error('Invalid URL type'), {
+                mcpServerUrl: selectedProject.mcpServerUrl,
+              })
+              // Try to detect MCP server again
+              await detectAndConnect()
+            }
+          } else {
+            await detectAndConnect()
+          }
+        } finally {
+          connectionStateRef.current.isConnecting = false
+          setIsConnecting(false)
+        }
+      }
+
+      performConnection()
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (connectionStateRef.current.connection) {
+        const conn = connectionStateRef.current.connection
+        if (typeof conn.disconnect === 'function') {
+          conn.disconnect()
+        } else if (typeof conn.close === 'function') {
+          conn.close()
+        }
       }
     }
-  }, [selectedProject])
+  }, [selectedProject?.id]) // Only re-run when project ID changes
 
   async function detectAndConnect() {
     if (!selectedProject) return
@@ -99,17 +161,37 @@ export default function WorkspacePage() {
           mcpServerUrl: mcpInfo.serverUrl,
         })
         await handleMCPConnection(mcpInfo.serverUrl, isScopeCamProject)
+      } else {
+        logger.info('No MCP server detected for project', {
+          message: 'Ensure the bridge server is running',
+          bridgeServerUrl: config.bridgeServerUrl,
+        })
       }
     } catch (error) {
-      console.error('Failed to detect MCP server:', error)
+      logger.error('Failed to detect MCP server', error as Error)
     }
   }
 
   async function handleMCPConnection(serverUrl: string, isScopeCam: boolean) {
     if (!selectedProject) return
 
+    // Ensure serverUrl is a string and not an object
+    if (typeof serverUrl !== 'string') {
+      logger.error('MCP server URL must be a string', new Error('Invalid type'), {
+        type: typeof serverUrl,
+        serverUrl,
+      })
+      return
+    }
+
+    // Validate MCP server URL before attempting connection
+    if (!serverUrl || !isValidMCPServerUrl(serverUrl)) {
+      logger.warn('Invalid or missing MCP server URL', { serverUrl })
+      return
+    }
+
     try {
-      let connection
+      let connection: any
       if (isScopeCam) {
         const scopeCamProject: ScopeCamProject = {
           ...selectedProject,
@@ -123,7 +205,7 @@ export default function WorkspacePage() {
               updateAgentActivity(selectedProject.id, message.data)
             }
           },
-          console.error
+          (error: any) => logger.error('ScopeCam connection error', error)
         )
         await connection.connect()
       } else {
@@ -133,9 +215,14 @@ export default function WorkspacePage() {
           }
         })
       }
+      // Add projectId to connection for cleanup tracking
+      if (connection) {
+        connection.projectId = selectedProject.id
+        connectionStateRef.current.connection = connection
+      }
       setMcpConnection(connection)
     } catch (error) {
-      console.error('MCP connection failed:', error)
+      logger.error('MCP connection failed', error as Error)
     }
   }
 
@@ -192,7 +279,7 @@ export default function WorkspacePage() {
         <NexusConsole
           collapsed={consoleCollapsed}
           onToggle={() => setConsoleCollapsed(!consoleCollapsed)}
-          projectPath={selectedProject?.path}
+          {...(selectedProject?.path && { projectPath: selectedProject.path })}
         />
       </div>
     </WorkspaceLayout>

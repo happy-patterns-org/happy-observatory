@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, AuthContext } from '@/lib/security/auth-middleware'
-import { withRateLimit, RateLimitOptions } from '@/lib/security/rate-limit'
-import { withProjectValidation, ProjectContext } from './project-middleware'
+import { type AuthContext, withAuth } from '@/lib/security/auth-middleware'
+import { type RateLimitOptions, withRateLimit } from '@/lib/security/rate-limit'
+import { type NextRequest, NextResponse } from 'next/server'
+import { type ProjectContext, withProjectValidation } from './project-middleware'
 
 /**
  * Options for secure middleware composition
@@ -23,7 +23,7 @@ export interface SecureContext {
   project?: ProjectContext
 }
 
-export function withSecureMiddleware<T extends any>(
+export function withSecureMiddleware<T>(
   handler: (req: NextRequest, context: SecureContext, routeContext: T) => Promise<NextResponse>,
   options: SecureMiddlewareOptions = {}
 ) {
@@ -49,13 +49,15 @@ export function withSecureMiddleware<T extends any>(
 
           context.project = {
             projectId,
-            projectSlug: projectId,
           }
         }
 
         return handler(req, context, routeContext)
       },
-      { mode: auth.mode, permissions: auth.permissions }
+      {
+        ...(auth.mode && { mode: auth.mode }),
+        ...(auth.permissions && { permissions: auth.permissions }),
+      }
     )
 
     wrappedHandler = authHandler as any
@@ -69,7 +71,10 @@ export function withSecureMiddleware<T extends any>(
   // Apply project validation if needed
   if (projectValidation && auth.mode === 'none') {
     // Only apply project validation without auth
-    wrappedHandler = withProjectValidation(wrappedHandler) as any
+    const adaptedHandler = (req: NextRequest, context: { params: any }) => {
+      return wrappedHandler(req, {}, context as T)
+    }
+    wrappedHandler = withProjectValidation(adaptedHandler) as any
   }
 
   return wrappedHandler
@@ -83,35 +88,35 @@ export const secureEndpoints = {
   public: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { mode: 'none' },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
     }),
 
   // Authenticated read-only endpoints
   readOnly: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { permissions: ['read'] },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
     }),
 
   // Authenticated write endpoints
   write: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { permissions: ['write'] },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
     }),
 
   // Admin-only endpoints
   admin: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { permissions: ['admin'] },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
     }),
 
   // Project-scoped read endpoints
   projectRead: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { permissions: ['read'] },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
       projectValidation: true,
     }),
 
@@ -119,7 +124,7 @@ export const secureEndpoints = {
   projectWrite: (handler: any, rateLimitOptions?: RateLimitOptions) =>
     withSecureMiddleware(handler, {
       auth: { permissions: ['write'] },
-      rateLimit: rateLimitOptions,
+      ...(rateLimitOptions && { rateLimit: rateLimitOptions }),
       projectValidation: true,
     }),
 }

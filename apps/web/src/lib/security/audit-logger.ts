@@ -36,15 +36,15 @@ function sanitizeLogData(data: any): any {
   // List of sensitive field names to redact
   const sensitiveFields = [
     'password',
-    'passwordHash',
+    'passwordhash',
     'token',
     'jwt',
     'secret',
-    'apiKey',
+    'apikey',
     'authorization',
     'cookie',
     'session',
-    'creditCard',
+    'creditcard',
     'ssn',
     'email', // Partially redact
     'phone', // Partially redact
@@ -61,7 +61,7 @@ function sanitizeLogData(data: any): any {
           const parts = obj[key].split('@')
           if (parts.length === 2) {
             const [local, domain] = parts
-            obj[key] = `${local.substring(0, 2)}***@${domain}`
+            obj[key] = `${local?.substring(0, 2) ?? ''}***@${domain}`
           } else {
             obj[key] = '[REDACTED]'
           }

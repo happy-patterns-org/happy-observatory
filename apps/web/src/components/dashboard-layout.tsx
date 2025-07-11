@@ -1,8 +1,8 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { Activity, BarChart3, GitBranch, LayoutDashboard, Settings, Terminal } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { ProjectChooser } from './project-chooser'
-import { Activity, LayoutDashboard, Settings, Terminal, GitBranch, BarChart3 } from 'lucide-react'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -25,7 +25,7 @@ export function DashboardLayout({ children, sidebar }: DashboardLayoutProps) {
 
           <div className="flex items-center gap-4">
             <ProjectChooser />
-            <button className="p-2 hover:bg-stone-100 rounded-md transition-colors">
+            <button type="button" className="p-2 hover:bg-stone-100 rounded-md transition-colors">
               <Settings className="w-5 h-5 text-stone-600" />
             </button>
           </div>
@@ -65,6 +65,7 @@ export function DashboardSidebar({
     <nav className="space-y-1">
       {menuItems.map((item) => (
         <button
+          type="button"
           key={item.id}
           onClick={() => onViewChange?.(item.id)}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${

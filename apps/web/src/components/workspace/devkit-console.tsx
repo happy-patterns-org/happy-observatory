@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Terminal, ChevronUp, ChevronDown, Command, X } from 'lucide-react'
+import { API_PATHS } from '@/config-adapter'
+import { useProjectStore } from '@/store/project-store'
+import { ChevronDown, ChevronUp, Command, Terminal } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface DevKitConsoleProps {
   collapsed: boolean
@@ -17,7 +19,8 @@ interface CommandHistoryItem {
   status: 'success' | 'error' | 'running'
 }
 
-export function DevKitConsole({ collapsed, onToggle, mcpConnection }: DevKitConsoleProps) {
+export function DevKitConsole({ collapsed, onToggle }: DevKitConsoleProps) {
+  const { selectedProject } = useProjectStore()
   const [input, setInput] = useState('')
   const [history, setHistory] = useState<CommandHistoryItem[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -56,16 +59,20 @@ export function DevKitConsole({ collapsed, onToggle, mcpConnection }: DevKitCons
 
     try {
       // Execute command via API
-      const response = await fetch('/api/console/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          command,
-          projectPath: window.location.pathname, // Could be improved with actual project path
-        }),
-      })
+      const response = await fetch(
+        selectedProject?.id ? API_PATHS.consoleExecute(selectedProject.id) : '/api/console/execute',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            command,
+            projectPath: selectedProject?.path || window.location.pathname,
+          }),
+        }
+      )
 
       if (response.ok) {
         const data = await response.json()
@@ -101,14 +108,14 @@ export function DevKitConsole({ collapsed, onToggle, mcpConnection }: DevKitCons
       if (historyIndex < commandHistory.length - 1) {
         const newIndex = historyIndex + 1
         setHistoryIndex(newIndex)
-        setInput(commandHistory[commandHistory.length - 1 - newIndex])
+        setInput(commandHistory[commandHistory.length - 1 - newIndex] || '')
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1
         setHistoryIndex(newIndex)
-        setInput(commandHistory[commandHistory.length - 1 - newIndex])
+        setInput(commandHistory[commandHistory.length - 1 - newIndex] || '')
       } else if (historyIndex === 0) {
         setHistoryIndex(-1)
         setInput('')
@@ -187,7 +194,6 @@ export function DevKitConsole({ collapsed, onToggle, mcpConnection }: DevKitCons
                 onKeyDown={handleKeyDown}
                 placeholder="Enter command..."
                 className="flex-1 bg-transparent text-stone-100 placeholder-stone-600 focus:outline-none font-mono text-sm"
-                autoFocus
               />
             </div>
           </div>

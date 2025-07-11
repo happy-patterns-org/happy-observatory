@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { generateToken } from '@/lib/security/auth-middleware'
 import { logger } from '@/lib/logger-server'
-import { withRateLimit } from '@/lib/security/rate-limit'
+import { getRequestMetadata, logSecurityEvent } from '@/lib/security/audit-logger'
+import { generateToken } from '@/lib/security/auth-middleware'
 import { securityConfig } from '@/lib/security/config'
 import { verifyPassword } from '@/lib/security/password'
-import { logSecurityEvent, getRequestMetadata } from '@/lib/security/audit-logger'
+import { withRateLimit } from '@/lib/security/rate-limit'
 import { loginRequestSchema } from '@/lib/validation/api-schemas'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Mock user database with hashed passwords
 // In production, these would come from a secure database

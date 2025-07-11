@@ -20,16 +20,16 @@ export class NextResponse {
   status: number
   statusText: string
   headers: Headers
-  private body: any
+  private body: unknown
 
-  constructor(body?: any, init?: ResponseInit) {
+  constructor(body?: unknown, init?: ResponseInit) {
     this.body = body
     this.status = init?.status || 200
     this.statusText = init?.statusText || 'OK'
     this.headers = new Headers(init?.headers)
   }
 
-  static json(data: any, init?: ResponseInit) {
+  static json(data: unknown, init?: ResponseInit) {
     const response = new NextResponse(data, init)
     response.headers.set('content-type', 'application/json')
     return response

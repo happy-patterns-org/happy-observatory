@@ -50,7 +50,18 @@ interface ProjectStore {
 }
 
 // Helper to generate IDs safely in browser only
-const generateId = () => {
+const generateId = (projectName?: string) => {
+  // For known backend projects, use their expected IDs
+  if (projectName) {
+    const normalizedName = projectName.toLowerCase()
+    if (normalizedName.includes('devkit') || normalizedName === 'happy devkit') {
+      return 'devkit'
+    }
+    if (normalizedName.includes('scopecam')) {
+      return 'scopecam'
+    }
+  }
+
   if (typeof window !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
   }
@@ -68,7 +79,7 @@ export const useProjectStore = create<ProjectStore>()(
       addProject: (projectData) => {
         const newProject: Project = {
           ...projectData,
-          id: generateId(),
+          id: generateId(projectData.name),
           lastAccessed: new Date(),
         }
         set((state) => ({
@@ -91,31 +102,45 @@ export const useProjectStore = create<ProjectStore>()(
           selectedProject: project || null,
         })
 
-        if (project) {
+        if (project && id) {
           get().updateProject(id, { lastAccessed: new Date() })
         }
       },
 
       updateProject: (id, updates) => {
+        // Ensure mcpServerUrl is always a string if provided
+        const sanitizedUpdates = { ...updates }
+        if (sanitizedUpdates.mcpServerUrl && typeof sanitizedUpdates.mcpServerUrl !== 'string') {
+          console.error(
+            'Attempted to set mcpServerUrl to non-string value:',
+            sanitizedUpdates.mcpServerUrl
+          )
+          delete sanitizedUpdates.mcpServerUrl
+        }
+
         set((state) => ({
-          projects: state.projects.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+          projects: state.projects.map((p) => (p.id === id ? { ...p, ...sanitizedUpdates } : p)),
           selectedProject:
             state.selectedProjectId === id
-              ? { ...state.selectedProject!, ...updates }
+              ? { ...state.selectedProject!, ...sanitizedUpdates }
               : state.selectedProject,
         }))
       },
 
       updateAgentActivity: (projectId, activity) => {
-        get().updateProject(projectId, { agentActivity: activity })
+        get().updateProject(projectId, activity ? { agentActivity: activity } : {})
       },
 
       updateConnectionStatus: (projectId, status) => {
         const project = get().projects.find((p) => p.id === projectId)
         if (project) {
+          const currentStatus = project.connectionStatus || {
+            bridge: 'disconnected' as const,
+            mcp: 'disconnected' as const
+          }
           get().updateProject(projectId, {
             connectionStatus: {
-              ...project.connectionStatus,
+              ...currentStatus,
               ...status,
             },
           })
@@ -136,15 +161,27 @@ export const useProjectStore = create<ProjectStore>()(
         }
 
         if (state) {
-          // Parse dates from JSON strings
+          // Parse dates from JSON strings and clean up invalid data
           state.projects = state.projects.map((project) => ({
             ...project,
             lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+            // Ensure mcpServerUrl is a string or undefined
+            mcpServerUrl:
+              typeof project.mcpServerUrl === 'string' ? project.mcpServerUrl : undefined,
           }))
 
           // Update selectedProject if it exists
-          if (state.selectedProject && state.selectedProject.lastAccessed) {
-            state.selectedProject.lastAccessed = new Date(state.selectedProject.lastAccessed)
+          if (state.selectedProject) {
+            if (state.selectedProject.lastAccessed) {
+              state.selectedProject.lastAccessed = new Date(state.selectedProject.lastAccessed)
+            }
+            // Clean up mcpServerUrl if it's not a string
+            if (
+              state.selectedProject.mcpServerUrl &&
+              typeof state.selectedProject.mcpServerUrl !== 'string'
+            ) {
+              delete state.selectedProject.mcpServerUrl
+            }
           }
         }
       },

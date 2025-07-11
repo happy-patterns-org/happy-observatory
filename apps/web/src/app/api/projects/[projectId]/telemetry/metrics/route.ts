@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
+import { getProjectContext, withProjectValidation } from '@/lib/api/project-middleware'
 import { env } from '@/lib/env'
-import { withProjectValidation, getProjectContext } from '@/lib/api/project-middleware'
+import { logger } from '@/lib/logger-server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Mark as dynamic to prevent static generation issues
 export const dynamic = 'force-dynamic'

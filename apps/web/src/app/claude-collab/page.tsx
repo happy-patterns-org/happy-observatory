@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { ProjectChooser } from '@/components/project-chooser'
 import { useProjectStore } from '@/store/project-store'
-import { Send, Code, FileText, Terminal, Sparkles, ChevronRight } from 'lucide-react'
+import { ChevronRight, Code, FileText, Send, Sparkles, Terminal } from 'lucide-react'
+import { useState } from 'react'
 
 export default function ClaudeCollabPage() {
   const { selectedProject } = useProjectStore()
@@ -68,17 +68,26 @@ export default function ClaudeCollabPage() {
         <aside className="w-64 bg-white border-r border-stone-200 p-4">
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Quick Actions</h2>
           <div className="space-y-2">
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors"
+            >
               <Code className="w-4 h-4" />
               <span>Review Code</span>
               <ChevronRight className="w-3 h-3 ml-auto" />
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors"
+            >
               <FileText className="w-4 h-4" />
               <span>Generate Tests</span>
               <ChevronRight className="w-3 h-3 ml-auto" />
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors"
+            >
               <Terminal className="w-4 h-4" />
               <span>Debug Issue</span>
               <ChevronRight className="w-3 h-3 ml-auto" />
@@ -111,24 +120,28 @@ export default function ClaudeCollabPage() {
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <button
+                      type="button"
                       onClick={() => setMessage('Help me understand the project structure')}
                       className="px-4 py-2 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
                     >
                       Explain project structure
                     </button>
                     <button
+                      type="button"
                       onClick={() => setMessage('What are the main components?')}
                       className="px-4 py-2 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
                     >
                       List main components
                     </button>
                     <button
+                      type="button"
                       onClick={() => setMessage('Review my recent changes')}
                       className="px-4 py-2 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
                     >
                       Review recent changes
                     </button>
                     <button
+                      type="button"
                       onClick={() => setMessage('Suggest improvements')}
                       className="px-4 py-2 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
                     >
@@ -182,6 +195,7 @@ export default function ClaudeCollabPage() {
                   className="flex-1 px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-stone-100 disabled:text-stone-500"
                 />
                 <button
+                  type="button"
                   onClick={handleSendMessage}
                   disabled={!selectedProject || !message.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"

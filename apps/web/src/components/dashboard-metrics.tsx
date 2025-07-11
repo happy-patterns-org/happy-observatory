@@ -1,21 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { API_PATHS } from '@/config-adapter'
+import { useProjectStore } from '@/store/project-store'
 import {
   Activity,
-  Users,
   CheckCircle,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown,
   Clock,
-  Zap,
-  Server,
-  Database,
   Cpu,
+  Database,
   HardDrive,
+  Server,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react'
-import { useProjectStore } from '@/store/project-store'
+import { useEffect, useState } from 'react'
+import { ErrorBoundary } from 'react-error-boundary'
+import useSWR from 'swr'
+import { ErrorFallback } from './error-fallback'
 import { MockDataIndicator } from './mock-data-indicator'
 
 interface MetricCardProps {
@@ -60,7 +62,7 @@ function MetricCard({ title, value, change, icon: Icon, trend, subtitle }: Metri
   )
 }
 
-export function DashboardMetrics() {
+function DashboardMetricsContent() {
   const { selectedProject } = useProjectStore()
   const [systemMetrics, setSystemMetrics] = useState({
     cpu: 0,
@@ -75,52 +77,50 @@ export function DashboardMetrics() {
     successRate: 0,
   })
   const [isRealData, setIsRealData] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-
-  // Fetch real telemetry data
-  useEffect(() => {
-    const fetchTelemetry = async () => {
-      try {
-        const response = await fetch('/api/telemetry/metrics?minutes=60')
-        if (response.ok) {
-          const data = await response.json()
-
-          if (data.metrics) {
-            setSystemMetrics({
-              cpu: data.metrics.system.cpu,
-              memory: data.metrics.system.memory,
-              uptime: formatUptime(data.metrics.system.uptime),
-              activeConnections: data.metrics.agents.active,
-            })
-
-            setAgentMetrics({
-              active: data.metrics.agents.active,
-              total: data.metrics.agents.total,
-              tasksCompleted: data.metrics.agents.tasks_completed,
-              successRate: data.metrics.agents.success_rate,
-            })
-
-            setIsRealData(data.isRealData || false)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch telemetry:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchTelemetry()
-    const interval = setInterval(fetchTelemetry, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   const formatUptime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
-    const days = Math.floor(hours / 24)
-    if (days > 0) return `${days}d ${hours % 24}h`
-    return `${hours}h`
+    const minutes = Math.floor((seconds % 3600) / 60)
+    if (hours > 24) {
+      const days = Math.floor(hours / 24)
+      return `${days}d ${hours % 24}h`
+    }
+    return `${hours}h ${minutes}m`
   }
+
+  // Use SWR for data fetching with automatic refresh and rate limit handling
+  const { data } = useSWR(
+    selectedProject?.id
+      ? `${API_PATHS.telemetryMetrics(selectedProject.id)}?minutes=60`
+      : `${API_PATHS.metrics}?minutes=60`,
+    // The global fetcher from SWR config handles auth and rate limiting
+    {
+      refreshInterval: 30000, // 30 seconds
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  )
+
+  // Process SWR data into metrics state
+  useEffect(() => {
+    if (data?.metrics) {
+      setSystemMetrics({
+        cpu: data.metrics.system.cpu,
+        memory: data.metrics.system.memory,
+        uptime: formatUptime(data.metrics.system.uptime),
+        activeConnections: data.metrics.agents.active,
+      })
+
+      setAgentMetrics({
+        active: data.metrics.agents.active,
+        total: data.metrics.agents.total,
+        tasksCompleted: data.metrics.agents.tasks_completed,
+        successRate: data.metrics.agents.success_rate,
+      })
+
+      setIsRealData(data.isRealData || false)
+    }
+  }, [data])
 
   const metrics = [
     {
@@ -255,5 +255,16 @@ export function DashboardMetrics() {
         </div>
       </div>
     </div>
+  )
+}
+
+export function DashboardMetrics() {
+  return (
+    <ErrorBoundary
+      FallbackComponent={(props) => <ErrorFallback {...props} componentName="Dashboard Metrics" />}
+      onReset={() => window.location.reload()}
+    >
+      <DashboardMetricsContent />
+    </ErrorBoundary>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { useProjectStore } from '@/store/project-store'
+import { getProjectWebSocketUrl } from '@/config-adapter'
 import { logger } from '@/lib/logger-client'
-import { env } from '@/lib/env'
+import { useProjectStore } from '@/store/project-store'
+import type { WSMessage, WSMetricsMessage, WSAgentStatusMessage } from '@business-org/shared-config-ts/src/index'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface ProjectWebSocketOptions {
   onTelemetry?: (data: any) => void
@@ -13,12 +14,8 @@ export interface ProjectWebSocketOptions {
   autoConnect?: boolean
 }
 
-interface WebSocketMessage {
-  type: string
-  projectId: string
-  data: any
-  timestamp: string
-}
+// Use typed message from shared config
+type WebSocketMessage = WSMessage
 
 export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
   const { selectedProject, updateConnectionStatus, updateAgentActivity } = useProjectStore()
@@ -43,8 +40,7 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
       wsRef.current.close()
     }
 
-    const wsUrl =
-      selectedProject.wsUrl || `${env.NEXT_PUBLIC_BRIDGE_WS_URL}/projects/${selectedProject.id}`
+    const wsUrl = selectedProject.wsUrl || getProjectWebSocketUrl(selectedProject.id)
 
     logger.info('Connecting to project WebSocket', {
       projectId: selectedProject.id,
@@ -57,7 +53,20 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
 
+      // Set a connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close()
+          setConnectionError('Connection timeout - bridge server may not be running')
+          updateConnectionStatus(selectedProject.id, {
+            bridge: 'error',
+            lastError: 'Connection timeout',
+          })
+        }
+      }, 5000)
+
       ws.onopen = () => {
+        clearTimeout(connectionTimeout)
         logger.info('Project WebSocket connected', { projectId: selectedProject.id })
         setIsConnected(true)
         setConnectionError(null)
@@ -75,26 +84,40 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
 
       ws.onmessage = (event) => {
         try {
-          const message: WebSocketMessage = JSON.parse(event.data)
+          const message: WSMessage = JSON.parse(event.data)
           setLastMessage(message)
 
           // Route message based on type
           switch (message.type) {
-            case 'telemetry':
-              options.onTelemetry?.(message.data)
+            case 'metrics':
+              options.onTelemetry?.((message as WSMetricsMessage).data)
               break
-            case 'agent_status':
-              options.onAgentStatus?.(message.data)
-              // Update store with agent activity
-              if (message.data.agentActivity) {
-                updateAgentActivity(selectedProject.id, message.data.agentActivity)
+            case 'agent_status_update':
+            case 'agent_status_full':
+              const agentMsg = message as WSAgentStatusMessage
+              options.onAgentStatus?.(agentMsg.data)
+              // Update store with agent activity if available
+              const agentData = agentMsg.data
+              if (agentData.agents) {
+                // Calculate activity metrics from agents
+                const agentStatuses = Object.values(agentData.agents)
+                const activeAgents = agentStatuses.filter(s => s.status === 'running').length
+                const activity = {
+                  activeAgents,
+                  totalTasks: agentStatuses.length,
+                  completedTasks: 0 // This would need to be tracked separately
+                }
+                updateAgentActivity(selectedProject.id, activity)
               }
               break
             case 'log':
-              options.onLog?.(message.data)
+              // Log messages might have data property
+              options.onLog?.((message as any).data || message)
               break
             case 'error':
-              options.onError?.(new Error(message.data.message))
+              // Error messages might have data property with message
+              const errorData = (message as any).data
+              options.onError?.(new Error(errorData?.message || 'WebSocket error'))
               break
           }
         } catch (error) {
@@ -102,7 +125,7 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
         }
       }
 
-      ws.onerror = (event) => {
+      ws.onerror = () => {
         logger.error('Project WebSocket error', new Error('WebSocket error'))
         setConnectionError('WebSocket connection error')
         updateConnectionStatus(selectedProject.id, {
@@ -116,8 +139,13 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
         setIsConnected(false)
         updateConnectionStatus(selectedProject.id, { bridge: 'disconnected' })
 
-        // Attempt reconnection if not manually closed
-        if (reconnectAttemptsRef.current < maxReconnectAttempts && options.autoConnect !== false) {
+        // Only attempt reconnection if it was previously connected
+        // This prevents endless reconnection attempts when bridge server is not running
+        if (
+          isConnected &&
+          reconnectAttemptsRef.current < maxReconnectAttempts &&
+          options.autoConnect !== false
+        ) {
           reconnectAttemptsRef.current++
           logger.info(
             `Attempting reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`
@@ -127,10 +155,10 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
             connect()
           }, reconnectDelay * reconnectAttemptsRef.current)
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          setConnectionError('Failed to connect after multiple attempts')
+          setConnectionError('Bridge server connection lost')
           updateConnectionStatus(selectedProject.id, {
             bridge: 'error',
-            lastError: 'Max reconnection attempts reached',
+            lastError: 'Connection lost - bridge server may be down',
           })
         }
       }
@@ -142,7 +170,18 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
         lastError: error instanceof Error ? error.message : 'Unknown error',
       })
     }
-  }, [selectedProject, options, updateConnectionStatus, updateAgentActivity])
+  }, [
+    selectedProject?.id,
+    selectedProject?.wsUrl,
+    options.autoConnect,
+    options.onTelemetry,
+    options.onAgentStatus,
+    options.onLog,
+    options.onError,
+    updateConnectionStatus,
+    updateAgentActivity,
+    isConnected,
+  ])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -187,6 +226,11 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
 
   // Auto-connect when project changes
   useEffect(() => {
+    // Prevent connection if already connected or connecting
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
+      return
+    }
+
     if (selectedProject && options.autoConnect !== false) {
       connect()
     }
@@ -194,7 +238,7 @@ export function useProjectWebSocket(options: ProjectWebSocketOptions = {}) {
     return () => {
       disconnect()
     }
-  }, [selectedProject?.id]) // Only reconnect when project ID changes
+  }, [selectedProject?.id, connect, disconnect, options.autoConnect]) // Proper dependencies
 
   return {
     isConnected,

@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/logger-server'
+import { type SecureContext, secureEndpoints } from '@/lib/api/secure-middleware'
 import { env } from '@/lib/env'
-import { secureEndpoints, SecureContext } from '@/lib/api/secure-middleware'
+import { logger } from '@/lib/logger-server'
 import { securityConfig } from '@/lib/security/config'
 import { agentCommandRequestSchema } from '@/lib/validation/api-schemas'
+import { type NextRequest, NextResponse } from 'next/server'
 
 async function handler(
   request: NextRequest,

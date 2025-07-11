@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Activity, CheckCircle, XCircle, Clock, Pause, RefreshCw } from 'lucide-react'
+import { API_PATHS } from '@/config-adapter'
 import { getTelemetryClient } from '@/lib/scopecam/telemetry'
+import { Activity, CheckCircle, Clock, Pause, RefreshCw, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ErrorBoundary } from 'react-error-boundary'
+import useSWR from 'swr'
+import { ErrorFallback } from './error-fallback'
 
 interface AgentStatus {
   id: string
@@ -28,68 +32,61 @@ interface AgentStatusMonitorProps {
   projectId?: string
 }
 
-export function AgentStatusMonitor({ projectId }: AgentStatusMonitorProps = {}) {
+function AgentStatusMonitorContent({ projectId }: AgentStatusMonitorProps = {}) {
   const [agents, setAgents] = useState<AgentStatus[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
-  const [autoRefresh, setAutoRefresh] = useState(true)
 
   const telemetryClient = getTelemetryClient()
 
-  useEffect(() => {
-    loadAgentStatuses()
+  // Use SWR for data fetching with automatic refresh and rate limit handling
+  const { data, error, isLoading, mutate } = useSWR<{ agents: any[] }>(
+    projectId ? API_PATHS.agentStatus(projectId) : null,
+    // The global fetcher from SWR config handles auth and rate limiting
+    {
+      // Keep the real-time feel with more frequent updates
+      refreshInterval: 30000, // 30 seconds
+      // Disable these to prevent request storms
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  )
 
-    // Subscribe to real-time updates
-    const unsubscribe = telemetryClient.on('agent-status', (data) => {
-      if (data.projectId === projectId) {
-        updateAgentStatus(data.agentId, data.status)
+  // Process SWR data into AgentStatus format
+  useEffect(() => {
+    if (data?.agents) {
+      const transformedAgents: AgentStatus[] = data.agents.map((agent: any) => ({
+        id: agent.id,
+        name: agent.name,
+        type: agent.type,
+        status: agent.status,
+        lastActivity: new Date(),
+        metrics: {
+          tasksCompleted: Math.floor(Math.random() * 100),
+          tasksFailed: Math.floor(Math.random() * 10),
+          avgDuration: Math.floor(Math.random() * 60),
+          uptime: Date.now() - Math.floor(Math.random() * 86400000),
+        },
+      }))
+      setAgents(transformedAgents)
+    }
+  }, [data])
+
+  // Subscribe to real-time updates
+  useEffect(() => {
+    const unsubscribe = telemetryClient.on('agent-status', (statusData) => {
+      if (statusData.projectId === projectId) {
+        updateAgentStatus(statusData.agentId, statusData.status)
       }
     })
 
-    // Auto-refresh every 5 seconds
-    const interval = autoRefresh ? setInterval(loadAgentStatuses, 5000) : null
-
     return () => {
       unsubscribe()
-      if (interval) clearInterval(interval)
     }
-  }, [projectId, autoRefresh])
-
-  const loadAgentStatuses = async () => {
-    try {
-      // Fetch agent statuses from the actual API endpoint
-      const response = await fetch('/api/agents/status')
-      if (response.ok) {
-        const data = await response.json()
-        // Transform the data to match our AgentStatus interface
-        const transformedAgents: AgentStatus[] = data.agents.map((agent: any) => ({
-          id: agent.id,
-          name: agent.name,
-          type: agent.type,
-          status: agent.status,
-          lastActivity: new Date(),
-          metrics: {
-            tasksCompleted: Math.floor(Math.random() * 100),
-            tasksFailed: Math.floor(Math.random() * 10),
-            avgDuration: Math.floor(Math.random() * 60),
-            uptime: Date.now() - Math.floor(Math.random() * 86400000),
-          },
-        }))
-        setAgents(transformedAgents)
-        setLastUpdate(new Date())
-      }
-    } catch (error) {
-      console.error('Failed to load agent statuses:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [projectId, telemetryClient])
 
   const updateAgentStatus = (agentId: string, updates: Partial<AgentStatus>) => {
     setAgents((prev) =>
       prev.map((agent) => (agent.id === agentId ? { ...agent, ...updates } : agent))
     )
-    setLastUpdate(new Date())
   }
 
   const getStatusIcon = (status: AgentStatus['status']) => {
@@ -145,7 +142,7 @@ export function AgentStatusMonitor({ projectId }: AgentStatusMonitorProps = {}) 
     return (
       <div className="bg-white rounded-lg border border-stone-300 p-6">
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       </div>
     )
@@ -157,31 +154,26 @@ export function AgentStatusMonitor({ projectId }: AgentStatusMonitorProps = {}) 
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-stone-900">Agent Status Monitor</h3>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="auto-refresh"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded border-stone-300"
-            />
-            <label htmlFor="auto-refresh" className="text-sm text-stone-600">
-              Auto-refresh
-            </label>
-          </div>
           <button
-            onClick={loadAgentStatuses}
+            onClick={() => mutate()}
             className="p-1 hover:bg-stone-100 rounded transition-colors"
             title="Refresh now"
+            disabled={isLoading}
           >
-            <RefreshCw className="w-4 h-4 text-stone-600" />
+            <RefreshCw className={`w-4 h-4 text-stone-600 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          <span className="text-xs text-stone-500">Updated: {lastUpdate.toLocaleTimeString()}</span>
+          <span className="text-xs text-stone-500">
+            {isLoading ? 'Updating...' : 'Auto-refreshes every 30s'}
+          </span>
         </div>
       </div>
 
       {/* Agent List */}
-      {agents.length === 0 ? (
+      {error ? (
+        <div className="text-center py-8 text-red-500">
+          Failed to load agent statuses. {error.message}
+        </div>
+      ) : agents.length === 0 ? (
         <div className="text-center py-8 text-stone-500">No active agents detected</div>
       ) : (
         <div className="space-y-4">
@@ -305,5 +297,18 @@ export function AgentStatusMonitor({ projectId }: AgentStatusMonitorProps = {}) 
         </div>
       </div>
     </div>
+  )
+}
+
+export function AgentStatusMonitor(props: AgentStatusMonitorProps) {
+  return (
+    <ErrorBoundary
+      FallbackComponent={(fallbackProps) => (
+        <ErrorFallback {...fallbackProps} componentName="Agent Status Monitor" />
+      )}
+      onReset={() => window.location.reload()}
+    >
+      <AgentStatusMonitorContent {...props} />
+    </ErrorBoundary>
   )
 }

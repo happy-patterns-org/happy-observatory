@@ -1,16 +1,18 @@
-import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { ProjectChooser } from '../project-chooser'
 import { useProjectStore } from '@/store/project-store'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import React from 'react'
+import { ProjectChooser } from '../project-chooser'
+import { vi } from 'vitest'
+
 
 // Mock the store
-jest.mock('@/store/project-store')
+vi.mock('@/store/project-store')
 
 describe('ProjectChooser', () => {
-  const mockAddProject = jest.fn()
-  const mockRemoveProject = jest.fn()
-  const mockSelectProject = jest.fn()
+  const mockAddProject = vi.fn()
+  const mockRemoveProject = vi.fn()
+  const mockSelectProject = vi.fn()
 
   const defaultMockStore = {
     projects: [],
@@ -21,7 +23,7 @@ describe('ProjectChooser', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(defaultMockStore)
   })
 

@@ -1,10 +1,21 @@
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useProjectStore } from '../project-store'
+import { vi } from 'vitest'
+
+// Mock crypto.randomUUID for consistent testing
+const mockRandomUUID = vi.fn()
+Object.defineProperty(global.crypto, 'randomUUID', {
+  writable: true,
+  value: mockRandomUUID,
+})
 
 describe('Project Store', () => {
   beforeEach(() => {
     // Use fake timers
-    jest.useFakeTimers()
+    vi.useFakeTimers()
+    
+    // Reset mock
+    mockRandomUUID.mockReturnValue('test-uuid-123')
 
     // Clear store before each test
     useProjectStore.setState({
@@ -17,7 +28,7 @@ describe('Project Store', () => {
   })
 
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   describe('addProject', () => {
@@ -51,8 +62,8 @@ describe('Project Store', () => {
       })
 
       expect(result.current.projects).toHaveLength(2)
-      expect(result.current.projects[0].name).toBe('Project 1')
-      expect(result.current.projects[1].name).toBe('Project 2')
+      expect(result.current.projects[0]?.name).toBe('Project 1')
+      expect(result.current.projects[1]?.name).toBe('Project 2')
     })
   })
 
@@ -67,7 +78,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.removeProject(projectId)
@@ -86,7 +97,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.selectProject(projectId)
@@ -115,7 +126,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.selectProject(projectId)
@@ -136,12 +147,12 @@ describe('Project Store', () => {
       })
 
       // Get the project data after the state has updated
-      projectId = result.current.projects[0].id
-      originalDate = result.current.projects[0].lastAccessed!
+      projectId = result.current.projects[0]?.id ?? ''
+      originalDate = result.current.projects[0]?.lastAccessed ?? new Date()
 
       // Wait a bit to ensure date changes
       act(() => {
-        jest.advanceTimersByTime(100)
+        vi.advanceTimersByTime(100)
         result.current.selectProject(projectId)
       })
 
@@ -156,7 +167,7 @@ describe('Project Store', () => {
         result.current.addProject({ name: 'Project', path: '/path' })
       })
 
-      const projectId = result.current.projects[0].id
+      const projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.selectProject(projectId)
@@ -184,7 +195,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.updateProject(projectId, {
@@ -213,7 +224,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       act(() => {
         result.current.selectProject(projectId)
@@ -238,7 +249,7 @@ describe('Project Store', () => {
       })
 
       // Get the project ID after the state has updated
-      projectId = result.current.projects[0].id
+      projectId = result.current.projects[0]?.id ?? ''
 
       const activity = {
         activeAgents: 3,
@@ -252,6 +263,191 @@ describe('Project Store', () => {
 
       const project = result.current.projects.find((p) => p.id === projectId)
       expect(project?.agentActivity).toEqual(activity)
+    })
+  })
+
+  describe('updateConnectionStatus', () => {
+    it('should update connection status for a project', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      let projectId: string
+
+      act(() => {
+        result.current.addProject({ name: 'Project', path: '/path' })
+      })
+
+      projectId = result.current.projects[0]?.id ?? ''
+
+      act(() => {
+        result.current.updateConnectionStatus(projectId, {
+          bridge: 'connected',
+          mcp: 'connecting',
+        })
+      })
+
+      const project = result.current.projects.find((p) => p.id === projectId)
+      expect(project?.connectionStatus).toEqual({
+        bridge: 'connected',
+        mcp: 'connecting',
+      })
+    })
+
+    it('should merge connection status updates', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      let projectId: string
+
+      act(() => {
+        result.current.addProject({ name: 'Project', path: '/path' })
+      })
+
+      projectId = result.current.projects[0]?.id ?? ''
+
+      // First update
+      act(() => {
+        result.current.updateConnectionStatus(projectId, {
+          bridge: 'connected',
+        })
+      })
+
+      // Second update
+      act(() => {
+        result.current.updateConnectionStatus(projectId, {
+          mcp: 'error',
+          lastError: 'Connection failed',
+        })
+      })
+
+      const project = result.current.projects.find((p) => p.id === projectId)
+      expect(project?.connectionStatus).toEqual({
+        bridge: 'connected',
+        mcp: 'error',
+        lastError: 'Connection failed',
+      })
+    })
+
+    it('should handle missing project gracefully', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      // Should not throw
+      act(() => {
+        result.current.updateConnectionStatus('non-existent', {
+          bridge: 'connected',
+        })
+      })
+
+      expect(result.current.projects).toHaveLength(0)
+    })
+  })
+
+  describe('setProjectUrls', () => {
+    it('should set project URLs', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      let projectId: string
+
+      act(() => {
+        result.current.addProject({ name: 'Project', path: '/path' })
+      })
+
+      projectId = result.current.projects[0]?.id ?? ''
+
+      act(() => {
+        result.current.setProjectUrls(projectId, {
+          bridgeUrl: 'ws://bridge:8080',
+          wsUrl: 'ws://ws:9090',
+          mcpServerUrl: 'http://mcp:5173',
+        })
+      })
+
+      const project = result.current.projects.find((p) => p.id === projectId)
+      expect(project).toMatchObject({
+        bridgeUrl: 'ws://bridge:8080',
+        wsUrl: 'ws://ws:9090',
+        mcpServerUrl: 'http://mcp:5173',
+      })
+    })
+  })
+
+  describe('generateId', () => {
+    it('should generate known IDs for backend projects', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      act(() => {
+        result.current.addProject({ name: 'Happy DevKit', path: '/devkit' })
+      })
+
+      expect(result.current.projects[0]?.id).toBe('devkit')
+
+      act(() => {
+        result.current.addProject({ name: 'ScopeCam', path: '/scopecam' })
+      })
+
+      expect(result.current.projects[1]?.id).toBe('scopecam')
+    })
+
+    it('should generate UUID for other projects', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      act(() => {
+        result.current.addProject({ name: 'Custom Project', path: '/custom' })
+      })
+
+      expect(result.current.projects[0]?.id).toBe('test-uuid-123')
+    })
+
+    it('should use fallback ID generation when crypto.randomUUID is not available', () => {
+      const { result } = renderHook(() => useProjectStore())
+
+      // Temporarily make crypto.randomUUID undefined
+      const originalRandomUUID = global.crypto.randomUUID
+      Object.defineProperty(global.crypto, 'randomUUID', {
+        writable: true,
+        value: undefined,
+      })
+
+      act(() => {
+        result.current.addProject({ name: 'Fallback Project', path: '/fallback' })
+      })
+
+      const projectId = result.current.projects[0]?.id ?? ''
+      expect(projectId).toMatch(/^\d+-[a-z0-9]+$/)
+
+      // Restore original
+      Object.defineProperty(global.crypto, 'randomUUID', {
+        writable: true,
+        value: originalRandomUUID,
+      })
+    })
+  })
+
+  describe('updateProject edge cases', () => {
+    it('should sanitize non-string mcpServerUrl', () => {
+      const { result } = renderHook(() => useProjectStore())
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      let projectId: string
+
+      act(() => {
+        result.current.addProject({ name: 'Project', path: '/path' })
+      })
+
+      projectId = result.current.projects[0]?.id ?? ''
+
+      act(() => {
+        result.current.updateProject(projectId, {
+          mcpServerUrl: { invalid: 'object' } as any,
+        })
+      })
+
+      const project = result.current.projects.find((p) => p.id === projectId)
+      expect(project?.mcpServerUrl).toBeUndefined()
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Attempted to set mcpServerUrl to non-string value:',
+        { invalid: 'object' }
+      )
+
+      consoleSpy.mockRestore()
     })
   })
 
@@ -270,6 +466,65 @@ describe('Project Store', () => {
       const parsed = JSON.parse(stored!)
       expect(parsed.state.projects).toHaveLength(1)
       expect(parsed.state.projects[0].name).toBe('Persistent')
+    })
+
+    it('should handle rehydration with date parsing', () => {
+      const now = new Date()
+      const storedState = {
+        state: {
+          projects: [
+            {
+              id: 'test-1',
+              name: 'Hydrated Project',
+              path: '/hydrated',
+              lastAccessed: now.toISOString(),
+              mcpServerUrl: 'http://valid-url',
+            },
+          ],
+          selectedProjectId: 'test-1',
+          selectedProject: {
+            id: 'test-1',
+            name: 'Hydrated Project',
+            path: '/hydrated',
+            lastAccessed: now.toISOString(),
+            mcpServerUrl: { invalid: 'object' }, // Invalid URL
+          },
+        },
+        version: 0,
+      }
+
+      localStorage.setItem('happy-observatory-projects', JSON.stringify(storedState))
+
+      // Create new store instance to trigger rehydration
+      const { result } = renderHook(() => useProjectStore())
+
+      // Force rehydration
+      act(() => {
+        useProjectStore.persist.rehydrate()
+      })
+
+      // Check that dates were parsed correctly
+      const project = result.current.projects[0]
+      expect(project?.lastAccessed).toBeInstanceOf(Date)
+      expect(project?.mcpServerUrl).toBe('http://valid-url')
+
+      // Check that invalid mcpServerUrl was cleaned up in selectedProject
+      expect(result.current.selectedProject?.mcpServerUrl).toBeUndefined()
+    })
+
+    it('should handle rehydration errors gracefully', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Set invalid JSON in localStorage
+      localStorage.setItem('happy-observatory-projects', 'invalid json')
+
+      // Create new store instance
+      const { result } = renderHook(() => useProjectStore())
+
+      // Should have empty state
+      expect(result.current.projects).toHaveLength(0)
+
+      consoleSpy.mockRestore()
     })
   })
 })

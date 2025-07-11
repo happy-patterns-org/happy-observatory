@@ -1,4 +1,5 @@
 import type { Project } from '@/store/project-store'
+import { SERVICE_URLS } from '@business-org/shared-config-ts/src/index'
 
 export const mockProjects: Project[] = [
   {
@@ -22,7 +23,7 @@ export const mockProjects: Project[] = [
       tests: 'devkit.tests.total',
     },
     hasSubmoduleMCP: true,
-    mcpServerUrl: 'http://localhost:8001',
+    mcpServerUrl: SERVICE_URLS.BRIDGE_SERVER,
   },
   {
     id: 'scopecam',
@@ -50,7 +51,7 @@ export const mockProjects: Project[] = [
       guardianActions: 'scopecam.guardian.actions',
     },
     hasSubmoduleMCP: true,
-    mcpServerUrl: 'http://localhost:8002',
+    mcpServerUrl: SERVICE_URLS.MCP_DAEMON,
   },
   {
     id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',

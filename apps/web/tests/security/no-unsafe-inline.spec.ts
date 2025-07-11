@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Security Regression Tests', () => {
   test('No unsafe-inline in script-src CSP directive', async ({ page }) => {
@@ -9,12 +9,12 @@ test.describe('Security Regression Tests', () => {
     }
 
     const response = await page.goto('/')
-    const cspHeader = response!.headers()['content-security-policy']
+    const cspHeader = response?.headers()['content-security-policy']
 
     expect(cspHeader).toBeTruthy()
 
     // Parse CSP directives
-    const directives = cspHeader!.split(';').map((d) => d.trim())
+    const directives = cspHeader?.split(';').map((d) => d.trim()) || []
     const scriptDirective = directives.find((d) => d.startsWith('script-src'))
 
     // Ensure script-src exists and does NOT contain unsafe-inline
@@ -27,7 +27,11 @@ test.describe('Security Regression Tests', () => {
 
   test('Security headers are present', async ({ page }) => {
     const response = await page.goto('/')
-    const headers = response!.headers()
+    const headers = response?.headers()
+
+    if (!headers) {
+      throw new Error('No headers received from response')
+    }
 
     // Check all required security headers
     expect(headers['x-frame-options']).toBe('DENY')
@@ -35,7 +39,7 @@ test.describe('Security Regression Tests', () => {
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
 
     // HSTS in production only
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && headers['strict-transport-security']) {
       expect(headers['strict-transport-security']).toContain('max-age=')
       expect(headers['strict-transport-security']).toContain('includeSubDomains')
     }

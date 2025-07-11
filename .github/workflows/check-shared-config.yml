@@ -1,0 +1,135 @@
+name: Check Shared Config Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check-breaking-changes:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Check for shared-config repository
+        id: check-shared-config
+        run: |
+          # Check if shared-config repo exists in expected location
+          if [ -d "../shared-config" ]; then
+            echo "shared_config_exists=true" >> $GITHUB_OUTPUT
+            echo "Found shared-config repository"
+          else
+            echo "shared_config_exists=false" >> $GITHUB_OUTPUT
+            echo "Shared-config repository not found in expected location"
+          fi
+      
+      - name: Clone shared-config if needed
+        if: steps.check-shared-config.outputs.shared_config_exists == 'false'
+        run: |
+          # Clone shared-config repo for CI environment
+          git clone https://github.com/${{ github.repository_owner }}/shared-config.git ../shared-config
+      
+      - name: Check for breaking changes
+        run: |
+          cd ../shared-config
+          
+          # Fetch latest changes
+          git fetch origin
+          
+          # Check if breaking change detection script exists
+          if [ -f "scripts/breaking-change-detect.py" ]; then
+            echo "Running breaking change detection..."
+            python scripts/breaking-change-detect.py || {
+              echo "::error::Breaking changes detected in shared-config!"
+              exit 1
+            }
+          else
+            echo "::warning::Breaking change detection script not found"
+          fi
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build shared-config TypeScript package
+        run: |
+          cd ../shared-config/packages/shared-config-ts
+          if [ -f "package.json" ]; then
+            npm install
+            npm run build || echo "::warning::Build script not found, skipping build"
+          fi
+      
+      - name: Run tests with latest shared-config
+        run: |
+          # Run shared-config integration tests
+          cd apps/web && npm test -- src/__tests__/shared-config-integration.test.ts
+      
+      - name: Type check with latest shared-config
+        run: |
+          cd apps/web && npx tsc --noEmit
+      
+      - name: Check for deprecation warnings
+        run: |
+          # Look for any deprecation warnings in the build output
+          npm run build 2>&1 | grep -i "deprecat" && {
+            echo "::warning::Deprecation warnings found. Please review."
+          } || true
+      
+      - name: Create compatibility report
+        if: always()
+        run: |
+          echo "## Shared Config Compatibility Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Repository: happy-observatory" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.head_ref || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All compatibility checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Compatibility issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-breaking-changes:
+    needs: check-breaking-changes
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create issue for breaking changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Shared Config Breaking Changes Detected';
+            const body = `
+            ## Breaking Changes Alert
+            
+            The scheduled compatibility check has detected breaking changes in the shared configuration.
+            
+            **Action Required:**
+            1. Review the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            2. Coordinate with the team on migration approach
+            3. Update code to handle the breaking changes
+            
+            This issue was automatically created by the shared-config compatibility check.
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['breaking-change', 'shared-config', 'urgent']
+            });

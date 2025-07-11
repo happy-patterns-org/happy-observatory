@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Content Security Policy', () => {
   test('CSP nonce is consistent across all inline scripts', async ({ page }) => {
@@ -6,12 +6,12 @@ test.describe('Content Security Policy', () => {
     expect(response).toBeTruthy()
 
     // Extract nonce from CSP header
-    const cspHeader = response!.headers()['content-security-policy']
+    const cspHeader = response?.headers()['content-security-policy']
     expect(cspHeader).toBeTruthy()
 
     const nonceMatch = cspHeader?.match(/'nonce-([^']+)'/)
     expect(nonceMatch).toBeTruthy()
-    const headerNonce = nonceMatch![1]
+    const headerNonce = nonceMatch?.[1]
 
     // Get all script elements with nonce attribute
     const scriptNonces = await page.$$eval('script[nonce]', (elements) =>
@@ -32,7 +32,7 @@ test.describe('Content Security Policy', () => {
 
   test('CSP allows unsafe-inline only for styles', async ({ page }) => {
     const response = await page.goto('/')
-    const cspHeader = response!.headers()['content-security-policy']
+    const cspHeader = response?.headers()['content-security-policy']
 
     // Parse CSP directives
     const directives = cspHeader?.split(';').map((d) => d.trim()) || []
@@ -51,12 +51,12 @@ test.describe('Content Security Policy', () => {
   test('Different requests get different nonces', async ({ page }) => {
     // First request
     const response1 = await page.goto('/')
-    const csp1 = response1!.headers()['content-security-policy']
+    const csp1 = response1?.headers()['content-security-policy']
     const nonce1 = csp1?.match(/'nonce-([^']+)'/)?.[1]
 
     // Second request
     const response2 = await page.goto('/workspace')
-    const csp2 = response2!.headers()['content-security-policy']
+    const csp2 = response2?.headers()['content-security-policy']
     const nonce2 = csp2?.match(/'nonce-([^']+)'/)?.[1]
 
     // Nonces should be different for security

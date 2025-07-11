@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export interface ProjectContext {
   projectId: string
@@ -24,8 +24,8 @@ export function validateProjectId(params: { projectId?: string }): string {
 }
 
 export async function validateProjectAccess(
-  request: NextRequest,
-  projectId: string
+  _request: NextRequest,
+  _projectId: string
 ): Promise<boolean> {
   // Always allow access in tests
   return true

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('CSP Inline Script Nonce', () => {
   test('all script elements have nonce attributes', async ({ page }) => {
@@ -11,7 +11,7 @@ test.describe('CSP Inline Script Nonce', () => {
     // Extract nonce from CSP header
     const nonceMatch = cspHeader?.match(/script-src[^;]*'nonce-([^']+)'/)
     expect(nonceMatch).toBeTruthy()
-    const headerNonce = nonceMatch![1]
+    const headerNonce = nonceMatch?.[1]
 
     // Check that script elements have nonce attributes
     const scriptNonces = await page.evaluate(() => {
